@@ -17,6 +17,7 @@ public partial class Texture2DArrayProperty : BaseProperty
     private VBoxContainer _rowsContainer;
     private Button _addButton;
     private readonly List<Texture2D> _items = new();
+    private readonly List<(EditorResourcePicker Picker, EditorResourcePicker.ResourceChangedEventHandler Handler)> _pickerBindings = new();
     private System.Type _memberType;
     private bool _expanded = true;
     private bool _commitQueued;
@@ -119,8 +120,19 @@ public partial class Texture2DArrayProperty : BaseProperty
         Updating = true;
         _items.Clear();
         _items.AddRange(ToTextureList(GetMemberValue()));
-        RebuildRows();
+        SyncRows();
         Updating = false;
+    }
+
+    public override void _ExitTree()
+    {
+        foreach (var binding in _pickerBindings)
+        {
+            binding.Picker.ResourceChanged -= binding.Handler;
+        }
+
+        _pickerBindings.Clear();
+        base._ExitTree();
     }
 
     private void OnAddPressed()
@@ -184,11 +196,11 @@ public partial class Texture2DArrayProperty : BaseProperty
         if (!string.IsNullOrEmpty(editedProperty))
             EmitChanged(editedProperty, ToVariant(value));
 
-        RebuildRows();
+        SyncRows();
         Updating = false;
     }
 
-    private void RebuildRows()
+    private void SyncRows()
     {
         if (_headerLabel != null)
             _headerLabel.Text = string.IsNullOrWhiteSpace(Label) ? "Textures" : Label;
@@ -196,14 +208,28 @@ public partial class Texture2DArrayProperty : BaseProperty
         if (_foldButton != null)
             _foldButton.Text = $"Array[Texture2D] (size {_items.Count})";
 
-        if (_sizeSpin != null)
+        if (_sizeSpin != null && !_sizeSpin.HasFocus())
             _sizeSpin.Value = _items.Count;
 
-        while (_rowsContainer.GetChildCount() > 0)
-            _rowsContainer.GetChild(0).QueueFree();
-
-        for (int i = 0; i < _items.Count; i++)
+        while (_pickerBindings.Count > _items.Count)
         {
+            var index = _pickerBindings.Count - 1;
+            var binding = _pickerBindings[index];
+            binding.Picker.ResourceChanged -= binding.Handler;
+
+            if (_rowsContainer.GetChildCount() > index)
+            {
+                var child = _rowsContainer.GetChild(index);
+                _rowsContainer.RemoveChild(child);
+                child.QueueFree();
+            }
+
+            _pickerBindings.RemoveAt(index);
+        }
+
+        while (_pickerBindings.Count < _items.Count)
+        {
+            var index = _pickerBindings.Count;
             var row = new HBoxContainer
             {
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
@@ -213,14 +239,22 @@ public partial class Texture2DArrayProperty : BaseProperty
             {
                 BaseType = nameof(Texture2D),
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-                EditedResource = _items[i]
+                EditedResource = _items[index]
             };
 
-            var index = i;
-            picker.ResourceChanged += resource => OnResourceChanged(index, resource);
+            EditorResourcePicker.ResourceChangedEventHandler handler = resource => OnResourceChanged(index, resource);
+            picker.ResourceChanged += handler;
+            _pickerBindings.Add((picker, handler));
 
             row.AddChild(picker);
             _rowsContainer.AddChild(row);
+        }
+
+        for (int i = 0; i < _pickerBindings.Count; i++)
+        {
+            var picker = _pickerBindings[i].Picker;
+            if (picker != null)
+                picker.EditedResource = _items[i];
         }
     }
 

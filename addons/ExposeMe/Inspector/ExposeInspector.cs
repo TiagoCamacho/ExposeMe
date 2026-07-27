@@ -173,9 +173,7 @@ public partial class ExposeInspector : EditorInspectorPlugin
             return editor;
         }
 
-        //TODO: Add support for Texture2DArray and Array<Texture2D> properties
-        // if (memberType == typeof(Texture2D[])
-        //     || memberType == typeof(Array<Texture2D>))
+        // if (memberType == typeof(Texture2D[]) || memberType == typeof(Array<Texture2D>))
         // {
         //     var editor = new Texture2DArrayProperty();
         //     editor.Initialize(child, member);
