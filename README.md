@@ -1,4 +1,6 @@
 # ExposeMe
+> [!CAUTION]
+> Right now this plugin is not working properly! Using it is not advised.
 
 ExposeMe is a Godot 4 C# editor plugin that shows selected child-node properties directly in a parent node inspector.
 No need for a lot of extra code. Just use `[ExposerNode]` and `[Expose]` and you are done.
